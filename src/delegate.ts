@@ -1,6 +1,9 @@
+import { Handler } from './interface'
+import { trapOn, trapOff } from './traps'
+
 interface Handlers {
-  bubble: Set<(e: Event) => any>
-  capture: Set<(e: Event) => any>
+  bubble: Set<Handler>
+  capture: Set<Handler>
 }
 type ElToHandlers = Map<EventTarget, Handlers>
 
@@ -8,11 +11,11 @@ type Phase = 'capture' | 'bubble'
 
 interface Delegate {
   on:
-  ((type: string, el: EventTarget, handler: (e: Event) => any, useCapture?: boolean) => void) &
-  ((type: string, el: EventTarget, handler: (e: Event) => any, options?: EventListenerOptions) => void)
+  ((type: string, el: EventTarget, handler: Handler, useCapture?: boolean) => void) &
+  ((type: string, el: EventTarget, handler: Handler, options?: EventListenerOptions) => void)
   off:
-  ((type: string, el: EventTarget, handler: (e: Event) => any, useCapture?: boolean) => void) &
-  ((type: string, el: EventTarget, handler: (e: Event) => any, useCapture?: EventListenerOptions) => void)
+  ((type: string, el: EventTarget, handler: Handler, useCapture?: boolean) => void) &
+  ((type: string, el: EventTarget, handler: Handler, useCapture?: EventListenerOptions) => void)
 }
 
 // currently `once` and `passive` is not supported
@@ -34,7 +37,7 @@ function createDelegate (): Delegate {
   // The e.eventPhase will be 2 at that time. In browser, useCapture will be ignored
   // and the sequence being called is its registered sequence. In evtd, it will cause an
   // error...
-  function createUnifiedHandler (): (e: Event) => void {
+  function createUnifiedHandler (): Handler {
     const delegeteHandler = function (e: Event): void {
       const { type, eventPhase, target } = e
       const phase = eventPhase === 1 ? 'capture' : 'bubble'
@@ -48,7 +51,7 @@ function createDelegate (): Delegate {
           break
         }
         // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-        cursor = ((cursor as any).parentElement || null) as (EventTarget | null)
+        cursor = ((cursor as any).parentNode || null) as (EventTarget | null)
       }
       const elToHandlers = typeToElToHandlers[phase][type]
       if (elToHandlers === undefined) {
@@ -101,9 +104,12 @@ function createDelegate (): Delegate {
   function on (
     type: string,
     el: EventTarget,
-    handler: (e: Event) => any,
+    handler: Handler,
     options?: boolean | EventListenerOptions
   ): void {
+    const trapped = trapOn(type as any, el as Element, handler, options)
+    if (trapped) return
+
     const phase = (
       options === true || (typeof options === 'object' && options.capture === true)
     ) ? 'capture' : 'bubble'
@@ -115,9 +121,11 @@ function createDelegate (): Delegate {
   function off (
     type: string,
     el: EventTarget,
-    handler: (e: Event) => any,
+    handler: Handler,
     options?: boolean | EventListenerOptions
   ): void {
+    const trapped = trapOff(type as any, el as Element, handler, options)
+    if (trapped) return
     const phase = (
       options === true || (typeof options === 'object' && options.capture === true)
     ) ? 'capture' : 'bubble'

@@ -101,5 +101,17 @@ describe('# delegate', () => {
       bubbles: true
     }))
     expect(fn).toHaveBeenCalled()
+    off('click', window, fn, true)
+  })
+  ;['click', 'mousemove'].forEach(type => {
+    it(`works with ${type} event`, () => {
+      const fn = jest.fn()
+      on(type, document, fn)
+      outer.dispatchEvent(new Event(type, {
+        bubbles: true
+      }))
+      expect(fn).toHaveBeenCalled()
+      off(type, document, fn)
+    })
   })
 })
