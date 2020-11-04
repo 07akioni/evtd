@@ -28,6 +28,12 @@ function createDelegate (): Delegate {
     bubble: {},
     capture: {}
   }
+  // Note
+  // If you register a capture event handler on window
+  // and the e.target is window too, only the bubble event handlers will be resolved.
+  // The e.eventPhase will be 2 at that time. In browser, useCapture will be ignored
+  // and the sequence being called is its registered sequence. In evtd, it will cause an
+  // error...
   function createUnifiedHandler (): (e: Event) => void {
     const delegeteHandler = function (e: Event): void {
       const { type, eventPhase, target } = e

@@ -94,4 +94,12 @@ describe('# delegate', () => {
     }))
     expect(arr).toEqual([1, 2, 3])
   })
+  it('works with capture on window', () => {
+    const fn = jest.fn()
+    on('click', window, fn, true)
+    document.dispatchEvent(new Event('click', {
+      bubbles: true
+    }))
+    expect(fn).toHaveBeenCalled()
+  })
 })
