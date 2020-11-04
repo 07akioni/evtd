@@ -3,7 +3,8 @@ interface Handlers {
   capture: Set<(e: Event) => any>
 }
 type ElToHandlers = Map<EventTarget, Handlers>
-type UnifiedHandler = (e: Event) => any
+
+type Phase = 'capture' | 'bubble'
 
 interface Delegate {
   on:
@@ -17,16 +18,20 @@ interface Delegate {
 // currently `once` and `passive` is not supported
 function createDelegate (): Delegate {
   const typeToElToHandlers: {
-    [key: string]: ElToHandlers | undefined
-  } = {}
-  const typeToUnfiedHandler: {
-    [key: string]: ((e: Event) => void) | undefined
-  } = {}
-  function createUnifiedHandler (
-    type: string,
-    elToHandlers: ElToHandlers
-  ): (e: Event) => any {
+    bubble: {
+      [key: string]: ElToHandlers | undefined
+    }
+    capture: {
+      [key: string]: ElToHandlers | undefined
+    }
+  } = {
+    bubble: {},
+    capture: {}
+  }
+  function createUnifiedHandler (): (e: Event) => any {
     const delegeteHandler = function (e: Event): void {
+      const { type } = e
+      const phase = e.eventPhase === 1 ? 'capture' : 'bubble'
       let cursor = e.target
       const path = []
       // collecting bubble path
@@ -39,45 +44,40 @@ function createDelegate (): Delegate {
         // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
         cursor = ((cursor as any).parentElement || null) as (EventTarget | null)
       }
-      // capture
-      for (let i = path.length - 1; i >= 0; --i) {
-        const handlers = elToHandlers.get(path[i])
-        if (handlers !== undefined) {
-          handlers.capture.forEach(handler => handler(e))
-        }
+      const elToHandlers = typeToElToHandlers[phase][type]
+      if (elToHandlers === undefined) {
+        console.error('[evtd]: attached listener has no corresponding handler, this could be a bug of evtd.')
+        return
       }
-      // bubble
-      for (let i = 0; i < path.length; ++i) {
-        const handlers = elToHandlers.get(path[i])
-        if (handlers !== undefined) {
-          handlers.bubble.forEach(handler => handler(e))
+      if (phase === 'capture') {
+        // capture
+        for (let i = path.length - 1; i >= 0; --i) {
+          const handlers = elToHandlers.get(path[i])
+          if (handlers !== undefined) {
+            handlers.capture.forEach(handler => handler(e))
+          }
+        }
+      } else {
+        // bubble
+        for (let i = 0; i < path.length; ++i) {
+          const handlers = elToHandlers.get(path[i])
+          if (handlers !== undefined) {
+            handlers.bubble.forEach(handler => handler(e))
+          }
         }
       }
     }
-    delegeteHandler.displayName = `${type}UnifiedHandler`
+    delegeteHandler.displayName = 'evtdUnifiedHandler'
     return delegeteHandler
   }
-  function ensureUnifiedHandler (
-    type: string
-  ): (e: Event) => any {
-    const elToHandlers = ensureElToHandlers(type)
-    if (
-      typeToUnfiedHandler[type] === undefined
-    ) {
-      typeToUnfiedHandler[type] = createUnifiedHandler(
-        type,
-        elToHandlers
-      )
+  const unifiedHandler = createUnifiedHandler()
+  function ensureElToHandlers (type: string, phase: Phase): ElToHandlers {
+    const phaseHandlers = typeToElToHandlers[phase]
+    if (phaseHandlers[type] === undefined) {
+      phaseHandlers[type] = new Map()
+      window.addEventListener(type, unifiedHandler, phase === 'capture')
     }
-    return typeToUnfiedHandler[type] as UnifiedHandler
-  }
-  function ensureElToHandlers (type: string): ElToHandlers {
-    if (typeToElToHandlers[type] === undefined) {
-      typeToElToHandlers[type] = new Map()
-      const unifiedHandler = ensureUnifiedHandler(type)
-      window.addEventListener(type, unifiedHandler, true)
-    }
-    return typeToElToHandlers[type] as ElToHandlers
+    return phaseHandlers[type] as ElToHandlers
   }
   function ensureHandlers (
     elToHandlers: ElToHandlers,
@@ -98,11 +98,11 @@ function createDelegate (): Delegate {
     handler: (e: Event) => any,
     options?: boolean | EventListenerOptions
   ): void {
-    const elToHandlers = ensureElToHandlers(type)
-    const handlers = ensureHandlers(elToHandlers, el)
     const phase = (
       options === true || (typeof options === 'object' && options.capture === true)
     ) ? 'capture' : 'bubble'
+    const elToHandlers = ensureElToHandlers(type, phase)
+    const handlers = ensureHandlers(elToHandlers, el)
     const phaseHandlers = handlers[phase]
     if (!phaseHandlers.has(handler)) phaseHandlers.add(handler)
   }
@@ -112,21 +112,19 @@ function createDelegate (): Delegate {
     handler: (e: Event) => any,
     options?: boolean | EventListenerOptions
   ): void {
-    const elToHandlers = ensureElToHandlers(type)
-    const handlers = ensureHandlers(elToHandlers, el)
     const phase = (
       options === true || (typeof options === 'object' && options.capture === true)
     ) ? 'capture' : 'bubble'
+    const elToHandlers = ensureElToHandlers(type, phase)
+    const handlers = ensureHandlers(elToHandlers, el)
     const phaseHandlers = handlers[phase]
     if (phaseHandlers.has(handler)) phaseHandlers.delete(handler)
     if (phaseHandlers.size === 0) {
       elToHandlers.delete(el)
     }
     if (elToHandlers.size === 0) {
-      const unifiedHandler = ensureUnifiedHandler(type)
-      window.removeEventListener(type, unifiedHandler)
-      typeToElToHandlers[type] = undefined
-      typeToUnfiedHandler[type] = undefined
+      window.removeEventListener(type, unifiedHandler, phase === 'capture')
+      typeToElToHandlers[phase][type] = undefined
     }
   }
   return {
