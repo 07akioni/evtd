@@ -62,7 +62,7 @@ describe('# delegate', () => {
     expect(cb).toHaveBeenCalledTimes(2)
     off('click', window, cb)
   })
-  it('work in capture mode', () => {
+  it('work in right sequence in capture mode (1)', () => {
     const arr: number[] = []
     on('click', outer, () => {
       arr.push(1)
@@ -74,6 +74,22 @@ describe('# delegate', () => {
       arr.push(2)
     })
     inner.dispatchEvent(new Event('click', {
+      bubbles: true
+    }))
+    expect(arr).toEqual([1, 2, 3])
+  })
+  it('work in right sequence in capture mode (2)', () => {
+    const arr: number[] = []
+    on('click', outer, () => {
+      arr.push(1)
+    }, true)
+    on('click', outer, () => {
+      arr.push(3)
+    })
+    outer.addEventListener('click', () => {
+      arr.push(2)
+    })
+    outer.dispatchEvent(new Event('click', {
       bubbles: true
     }))
     expect(arr).toEqual([1, 2, 3])

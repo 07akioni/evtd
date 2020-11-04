@@ -28,7 +28,7 @@ function createDelegate (): Delegate {
     bubble: {},
     capture: {}
   }
-  function createUnifiedHandler (): (e: Event) => any {
+  function createUnifiedHandler (): (e: Event) => void {
     const delegeteHandler = function (e: Event): void {
       const { type, eventPhase, target } = e
       const phase = eventPhase === 1 ? 'capture' : 'bubble'
