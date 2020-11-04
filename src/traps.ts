@@ -30,13 +30,13 @@ function createTrapHandler (
       }
     }
   } else if (name === 'clickoutside') {
-    let mouseDownOutsideEl = false
+    let mouseDownOutside = false
     return {
-      mouseedown: (e: Event) => {
-        mouseDownOutsideEl = !el.contains(e.target as any)
+      mousedown: (e: Event) => {
+        mouseDownOutside = !el.contains(e.target as any)
       },
       mouseup: (e: Event) => {
-        if (!mouseDownOutsideEl) return
+        if (!mouseDownOutside) return
         if (el.contains(e.target as any)) return
         originalHandler(e)
       }
