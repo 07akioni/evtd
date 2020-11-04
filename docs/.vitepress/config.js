@@ -1,5 +1,5 @@
 module.exports = {
-  title: 'Vooks',
+  title: 'evtd',
   description: 'Just playing around',
   themeConfig: {
     sidebar: [
