@@ -109,7 +109,6 @@ function createDelegate (): Delegate {
   ): void {
     const trapped = trapOn(type as any, el as Element, handler, options)
     if (trapped) return
-
     const phase = (
       options === true || (typeof options === 'object' && options.capture === true)
     ) ? 'capture' : 'bubble'
