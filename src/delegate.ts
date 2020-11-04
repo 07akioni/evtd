@@ -30,9 +30,9 @@ function createDelegate (): Delegate {
   }
   function createUnifiedHandler (): (e: Event) => any {
     const delegeteHandler = function (e: Event): void {
-      const { type } = e
-      const phase = e.eventPhase === 1 ? 'capture' : 'bubble'
-      let cursor = e.target
+      const { type, eventPhase, target } = e
+      const phase = eventPhase === 1 ? 'capture' : 'bubble'
+      let cursor = target
       const path = []
       // collecting bubble path
       while (true) {
