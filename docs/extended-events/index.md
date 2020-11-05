@@ -12,5 +12,5 @@ import { on, off } from 'evtd'
 const handleClickOutside = (e) => console.log('clickoutside', e)
 
 on('clickoutside', el, handleClickOutside)
-off('clickoutside', el, handleClickOutside
+off('clickoutside', el, handleClickOutside)
 ```
