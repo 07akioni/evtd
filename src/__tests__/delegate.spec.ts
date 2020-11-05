@@ -113,5 +113,24 @@ describe('# delegate', () => {
       expect(fn).toHaveBeenCalled()
       off(type, document, fn)
     })
+    it(`has correct ${type} currentTarget`, () => {
+      const path = [window, document, document.body, outer, inner]
+      path.forEach((_, index) => {
+        const subPath = path.slice(index)
+        if (subPath.length === 0) return
+        const attachTo = subPath[0]
+        const currentHandler = (e: Event): void => {
+          expect((e as CustomEvent).currentTarget).toEqual(attachTo)
+        }
+        on(type, attachTo, currentHandler)
+        subPath.forEach(target => {
+          target.dispatchEvent(new CustomEvent(type, {
+            detail: attachTo,
+            bubbles: true
+          }))
+        })
+        off(type, attachTo, currentHandler)
+      })
+    })
   })
 })

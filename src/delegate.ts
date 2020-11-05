@@ -18,6 +18,21 @@ interface Delegate {
   ((type: string, el: EventTarget, handler: Handler, useCapture?: EventListenerOptions) => void)
 }
 
+const currentTargets = new WeakMap<Event, EventTarget>()
+const currentTargetDescriptor = Object.getOwnPropertyDescriptor(Event.prototype, 'currentTarget')
+function getCurrentTarget (this: Event): EventTarget | null {
+  return currentTargets.get(this) ?? null
+}
+
+function defineCurrentTarget (event: Event, getter?: () => EventTarget | null): void {
+  if (currentTargetDescriptor === undefined) return
+  Object.defineProperty(event, 'currentTarget', {
+    configurable: true,
+    enumerable: true,
+    get: getter ?? currentTargetDescriptor.get
+  })
+}
+
 // currently `once` and `passive` is not supported
 function createDelegate (): Delegate {
   const typeToElToHandlers: {
@@ -58,23 +73,29 @@ function createDelegate (): Delegate {
         console.error('[evtd]: attached listener has no corresponding handler, this could be a bug of evtd.')
         return
       }
+      defineCurrentTarget(e, getCurrentTarget)
       if (phase === 'capture') {
         // capture
         for (let i = path.length - 1; i >= 0; --i) {
-          const handlers = elToHandlers.get(path[i])
+          const target = path[i]
+          const handlers = elToHandlers.get(target)
           if (handlers !== undefined) {
+            currentTargets.set(e, target)
             handlers.capture.forEach(handler => handler(e))
           }
         }
       } else {
         // bubble
         for (let i = 0; i < path.length; ++i) {
-          const handlers = elToHandlers.get(path[i])
+          const target = path[i]
+          const handlers = elToHandlers.get(target)
           if (handlers !== undefined) {
+            currentTargets.set(e, target)
             handlers.bubble.forEach(handler => handler(e))
           }
         }
       }
+      defineCurrentTarget(e)
     }
     delegeteHandler.displayName = 'evtdUnifiedHandler'
     return delegeteHandler
