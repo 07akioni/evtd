@@ -10,6 +10,16 @@ module.exports = {
       {
         text: 'API',
         link: '/api/'
+      },
+      {
+        text: 'Extended Events',
+        link: '/extended-events/'
+      }
+    ],
+    nav: [
+      {
+        text: 'Github',
+        link: 'https://github.com/07akioni/evtd'
       }
     ]
   }

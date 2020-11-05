@@ -1,2 +1,2 @@
 # evtd
-Event Delegation.
+Event delegation with native events and extended events.
