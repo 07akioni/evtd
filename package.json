@@ -1,6 +1,6 @@
 {
   "name": "evtd",
-  "version": "0.0.1-alpha.2",
+  "version": "0.0.1-alpha.3",
   "description": "Event delegation with native events and extended events.",
   "main": "lib/index.js",
   "module": "es/index.js",
