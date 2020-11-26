@@ -1,5 +1,5 @@
 import { Handler } from './interface'
-import { trapOn, trapOff } from './traps'
+import { trapOn, trapOff, TrapEventMap } from './traps'
 
 interface Handlers {
   bubble: Set<Handler>
@@ -9,6 +9,7 @@ type ElToHandlers = Map<EventTarget, Handlers>
 
 type Phase = 'capture' | 'bubble'
 
+// TODO add global event listener
 interface Delegate {
   on:
   (<K extends keyof HTMLElementEventMap>(type: K, el: HTMLElement, handler: (e: HTMLElementEventMap[K]) => any, useCapture?: boolean) => void) &
@@ -17,6 +18,9 @@ interface Delegate {
   (<K extends keyof WindowEventMap>(type: K, el: Window, handler: (e: WindowEventMap[K]) => any, options?: EventListenerOptions) => void) &
   (<K extends keyof DocumentEventMap>(type: K, el: Document, handler: (e: DocumentEventMap[K]) => any, useCapture?: boolean) => void) &
   (<K extends keyof DocumentEventMap>(type: K, el: Document, handler: (e: DocumentEventMap[K]) => any, options?: EventListenerOptions) => void) &
+  (<K extends keyof TrapEventMap>(type: K, el: HTMLElement, handler: (e: TrapEventMap[K]) => any, useCapture?: boolean) => void) &
+  (<K extends keyof TrapEventMap>(type: K, el: HTMLElement, handler: (e: TrapEventMap[K]) => any, options?: EventListenerOptions) => void) &
+  ((type: String, el: EventTarget, handler: EventListener, useCapture?: boolean) => void) &
   ((type: String, el: EventTarget, handler: EventListener, useCapture?: boolean) => void) &
   ((type: String, el: EventTarget, handler: EventListener, options?: EventListenerOptions) => void)
   off:
@@ -26,6 +30,8 @@ interface Delegate {
   (<K extends keyof WindowEventMap>(type: K, el: Window, handler: (e: WindowEventMap[K]) => any, options?: EventListenerOptions) => void) &
   (<K extends keyof DocumentEventMap>(type: K, el: Document, handler: (e: DocumentEventMap[K]) => any, useCapture?: boolean) => void) &
   (<K extends keyof DocumentEventMap>(type: K, el: Document, handler: (e: DocumentEventMap[K]) => any, options?: EventListenerOptions) => void) &
+  (<K extends keyof TrapEventMap>(type: K, el: HTMLElement, handler: (e: TrapEventMap[K]) => any, useCapture?: boolean) => void) &
+  (<K extends keyof TrapEventMap>(type: K, el: HTMLElement, handler: (e: TrapEventMap[K]) => any, options?: EventListenerOptions) => void) &
   ((type: string, el: EventTarget, handler: EventListener, useCapture?: boolean) => void) &
   ((type: string, el: EventTarget, handler: EventListener, options?: EventListenerOptions) => void)
 }

@@ -6,7 +6,12 @@ import {
   Handler
 } from './interface'
 
-type TrapEventNames = 'mousemoveoutside' | 'clickoutside'
+export interface TrapEventMap {
+  'mousemoveoutside': MouseEvent
+  'clickoutside': MouseEvent
+}
+
+type TrapEventNames = keyof TrapEventMap
 
 const traps = {
   mousemoveoutside: new WeakMap<EventTarget, WeakMap<Function, TrapHandlers>>(),
