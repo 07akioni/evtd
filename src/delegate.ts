@@ -11,11 +11,23 @@ type Phase = 'capture' | 'bubble'
 
 interface Delegate {
   on:
-  ((type: string, el: EventTarget, handler: Handler, useCapture?: boolean) => void) &
-  ((type: string, el: EventTarget, handler: Handler, options?: EventListenerOptions) => void)
+  (<K extends keyof HTMLElementEventMap>(type: K, el: HTMLElement, handler: (e: HTMLElementEventMap[K]) => any, useCapture?: boolean) => void) &
+  (<K extends keyof HTMLElementEventMap>(type: K, el: HTMLElement, handler: (e: HTMLElementEventMap[K]) => any, options?: EventListenerOptions) => void) &
+  (<K extends keyof WindowEventMap>(type: K, el: Window, handler: (e: WindowEventMap[K]) => any, useCapture?: boolean) => void) &
+  (<K extends keyof WindowEventMap>(type: K, el: Window, handler: (e: WindowEventMap[K]) => any, options?: EventListenerOptions) => void) &
+  (<K extends keyof DocumentEventMap>(type: K, el: Document, handler: (e: DocumentEventMap[K]) => any, useCapture?: boolean) => void) &
+  (<K extends keyof DocumentEventMap>(type: K, el: Document, handler: (e: DocumentEventMap[K]) => any, options?: EventListenerOptions) => void) &
+  ((type: String, el: EventTarget, handler: EventListener, useCapture?: boolean) => void) &
+  ((type: String, el: EventTarget, handler: EventListener, options?: EventListenerOptions) => void)
   off:
-  ((type: string, el: EventTarget, handler: Handler, useCapture?: boolean) => void) &
-  ((type: string, el: EventTarget, handler: Handler, useCapture?: EventListenerOptions) => void)
+  (<K extends keyof HTMLElementEventMap>(type: K, el: HTMLElement, handler: (e: HTMLElementEventMap[K]) => any, useCapture?: boolean) => void) &
+  (<K extends keyof HTMLElementEventMap>(type: K, el: HTMLElement, handler: (e: HTMLElementEventMap[K]) => any, options?: EventListenerOptions) => void) &
+  (<K extends keyof WindowEventMap>(type: K, el: Window, handler: (e: WindowEventMap[K]) => any, useCapture?: boolean) => void) &
+  (<K extends keyof WindowEventMap>(type: K, el: Window, handler: (e: WindowEventMap[K]) => any, options?: EventListenerOptions) => void) &
+  (<K extends keyof DocumentEventMap>(type: K, el: Document, handler: (e: DocumentEventMap[K]) => any, useCapture?: boolean) => void) &
+  (<K extends keyof DocumentEventMap>(type: K, el: Document, handler: (e: DocumentEventMap[K]) => any, options?: EventListenerOptions) => void) &
+  ((type: string, el: EventTarget, handler: EventListener, useCapture?: boolean) => void) &
+  ((type: string, el: EventTarget, handler: EventListener, options?: EventListenerOptions) => void)
 }
 
 const currentTargets = new WeakMap<Event, EventTarget>()
@@ -162,8 +174,8 @@ function createDelegate (): Delegate {
     }
   }
   return {
-    on,
-    off
+    on: on as any,
+    off: off as any
   }
 }
 
