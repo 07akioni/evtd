@@ -166,5 +166,18 @@ describe('# delegate', () => {
       expect(bubbleCb).toHaveBeenCalledTimes(1)
       expect(captureCb).toHaveBeenCalledTimes(2)
     })
+    it('work with stop propatation', () => {
+      const cb1 = jest.fn()
+      const cb2 = jest.fn((e) => {
+        e.stopPropagation()
+      })
+      on(type, window, cb1)
+      on(type, document, cb1)
+      on(type, outer, cb1)
+      on(type, inner, cb2)
+      inner.dispatchEvent(new MouseEvent(type, { bubbles: true }))
+      expect(cb1).not.toHaveBeenCalled()
+      expect(cb2).toHaveBeenCalledTimes(1)
+    })
   })
 })

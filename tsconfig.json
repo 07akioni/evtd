@@ -4,7 +4,8 @@
     "strict": true,
     "declaration": true,
     "strictNullChecks": true,
-    "moduleResolution": "Node"
+    "moduleResolution": "Node",
+    "downlevelIteration": true
   },
   "include": [
     "src/**/*"

@@ -1,6 +1,31 @@
 import { Handler } from './interface'
 import { trapOn, trapOff, TrapEventMap } from './traps'
 
+const propagationStopped = new WeakMap<Event, boolean>()
+const immediatePropagationStopped = new WeakMap<Event, boolean>()
+
+function trackPropagation (this: Event): void {
+  propagationStopped.set(this, true)
+}
+
+function trackImmediate (this: Event): void {
+  propagationStopped.set(this, true)
+  immediatePropagationStopped.set(this, true)
+}
+
+function spy (event: Event, propName: keyof Event, fn: Function): Event {
+  const source = event[propName]
+  ;(event as any)[propName] = function () {
+    fn.apply(event, arguments)
+    return (source as any).apply(event, arguments)
+  } as any
+  return event
+}
+
+function unspy (event: Event, propName: keyof Event): void {
+  (event as any)[propName] = Event.prototype[propName]
+}
+
 type Handlers = Set<Handler>
 
 type ElToHandlers = Map<EventTarget, Handlers>
@@ -67,18 +92,12 @@ function createDelegate (): Delegate {
     capture: {}
   }
   const typeToWindowEventHandlers: TypeToHandlers = {}
-  // Note
-  // If you register a capture event handler on window
-  // and the e.target is window too, only the bubble event handlers will be resolved.
-  // The e.eventPhase will be 2 at that time. In browser, useCapture will be ignored
-  // and the sequence being called is its registered sequence. In evtd, it will cause an
-  // error...
+
   function createUnifiedHandler (): Handler {
     const delegeteHandler = function (e: Event): void {
       const { type, eventPhase, target, bubbles } = e
       if (eventPhase === 2) return
       const phase = eventPhase === 1 ? 'capture' : 'bubble'
-      console.log(phaseToTypeToElToHandlers, { type, eventPhase, target, phase })
       let cursor = target
       const path = []
       // collecting bubble path
@@ -93,26 +112,32 @@ function createDelegate (): Delegate {
       }
       const captureElToHandlers = phaseToTypeToElToHandlers.capture[type]
       const bubbleElToHandlers = phaseToTypeToElToHandlers.bubble[type]
-      // if (elToHandlers === undefined) {
-      //   console.error('[evtd]: attached listener has no corresponding handler, this could be a bug of evtd.')
-      //   return
-      // }
+
+      spy(e, 'stopPropagation', trackPropagation)
+      spy(e, 'stopImmediatePropagation', trackImmediate)
       defineCurrentTarget(e, getCurrentTarget)
-      // console.log(path)
+
       if (phase === 'capture') {
         if (captureElToHandlers === undefined) return
         // capture
         for (let i = path.length - 1; i >= 0; --i) {
+          if (propagationStopped.has(e)) break
           const target = path[i]
           const handlers = captureElToHandlers.get(target)
           if (handlers !== undefined) {
             currentTargets.set(e, target)
-            handlers.forEach(handler => handler(e))
+            for (const handler of handlers) {
+              if (immediatePropagationStopped.has(e)) break
+              handler(e)
+            }
           }
           if (i === 0 && !bubbles && bubbleElToHandlers !== undefined) {
             const bubbleHandlers = bubbleElToHandlers.get(target)
             if (bubbleHandlers !== undefined) {
-              bubbleHandlers.forEach(handler => handler(e))
+              for (const handler of bubbleHandlers) {
+                if (immediatePropagationStopped.has(e)) break
+                handler(e)
+              }
             }
           }
         }
@@ -120,14 +145,20 @@ function createDelegate (): Delegate {
         if (bubbleElToHandlers === undefined) return
         // bubble
         for (let i = 0; i < path.length; ++i) {
+          if (propagationStopped.has(e)) break
           const target = path[i]
           const handlers = bubbleElToHandlers.get(target)
           if (handlers !== undefined) {
             currentTargets.set(e, target)
-            handlers.forEach(handler => handler(e))
+            for (const handler of handlers) {
+              if (immediatePropagationStopped.has(e)) break
+              handler(e)
+            }
           }
         }
       }
+      unspy(e, 'stopPropagation')
+      unspy(e, 'stopImmediatePropagation')
       defineCurrentTarget(e)
     }
     delegeteHandler.displayName = 'evtdUnifiedHandler'
@@ -215,7 +246,6 @@ function createDelegate (): Delegate {
         windowEventHandlers.add(handler)
       }
     }
-    console.log(phaseToTypeToElToHandlers, typeToWindowEventHandlers)
   }
   function off (
     type: string,
