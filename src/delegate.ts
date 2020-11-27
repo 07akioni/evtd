@@ -1,11 +1,13 @@
 import { Handler } from './interface'
 import { trapOn, trapOff, TrapEventMap } from './traps'
 
-interface Handlers {
-  bubble: Set<Handler>
-  capture: Set<Handler>
-}
+type Handlers = Set<Handler>
+
 type ElToHandlers = Map<EventTarget, Handlers>
+
+interface TypeToHandlers {
+  [key: string]: Handlers | undefined
+}
 
 type Phase = 'capture' | 'bubble'
 
@@ -53,7 +55,7 @@ function defineCurrentTarget (event: Event, getter?: () => EventTarget | null): 
 
 // currently `once` and `passive` is not supported
 function createDelegate (): Delegate {
-  const typeToElToHandlers: {
+  const phaseToTypeToElToHandlers: {
     bubble: {
       [key: string]: ElToHandlers | undefined
     }
@@ -64,6 +66,7 @@ function createDelegate (): Delegate {
     bubble: {},
     capture: {}
   }
+  const typeToWindowEventHandlers: TypeToHandlers = {}
   // Note
   // If you register a capture event handler on window
   // and the e.target is window too, only the bubble event handlers will be resolved.
@@ -72,8 +75,10 @@ function createDelegate (): Delegate {
   // error...
   function createUnifiedHandler (): Handler {
     const delegeteHandler = function (e: Event): void {
-      const { type, eventPhase, target } = e
+      const { type, eventPhase, target, bubbles } = e
+      if (eventPhase === 2) return
       const phase = eventPhase === 1 ? 'capture' : 'bubble'
+      console.log(phaseToTypeToElToHandlers, { type, eventPhase, target, phase })
       let cursor = target
       const path = []
       // collecting bubble path
@@ -86,30 +91,40 @@ function createDelegate (): Delegate {
         // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
         cursor = ((cursor as any).parentNode || null) as (EventTarget | null)
       }
-      const elToHandlers = typeToElToHandlers[phase][type]
-      if (elToHandlers === undefined) {
-        console.error('[evtd]: attached listener has no corresponding handler, this could be a bug of evtd.')
-        return
-      }
+      const captureElToHandlers = phaseToTypeToElToHandlers.capture[type]
+      const bubbleElToHandlers = phaseToTypeToElToHandlers.bubble[type]
+      // if (elToHandlers === undefined) {
+      //   console.error('[evtd]: attached listener has no corresponding handler, this could be a bug of evtd.')
+      //   return
+      // }
       defineCurrentTarget(e, getCurrentTarget)
+      // console.log(path)
       if (phase === 'capture') {
+        if (captureElToHandlers === undefined) return
         // capture
         for (let i = path.length - 1; i >= 0; --i) {
           const target = path[i]
-          const handlers = elToHandlers.get(target)
+          const handlers = captureElToHandlers.get(target)
           if (handlers !== undefined) {
             currentTargets.set(e, target)
-            handlers.capture.forEach(handler => handler(e))
+            handlers.forEach(handler => handler(e))
+          }
+          if (i === 0 && !bubbles && bubbleElToHandlers !== undefined) {
+            const bubbleHandlers = bubbleElToHandlers.get(target)
+            if (bubbleHandlers !== undefined) {
+              bubbleHandlers.forEach(handler => handler(e))
+            }
           }
         }
-      } else {
+      } else if (phase === 'bubble') {
+        if (bubbleElToHandlers === undefined) return
         // bubble
         for (let i = 0; i < path.length; ++i) {
           const target = path[i]
-          const handlers = elToHandlers.get(target)
+          const handlers = bubbleElToHandlers.get(target)
           if (handlers !== undefined) {
             currentTargets.set(e, target)
-            handlers.bubble.forEach(handler => handler(e))
+            handlers.forEach(handler => handler(e))
           }
         }
       }
@@ -118,14 +133,36 @@ function createDelegate (): Delegate {
     delegeteHandler.displayName = 'evtdUnifiedHandler'
     return delegeteHandler
   }
+  function createUnifiedWindowEventHandler (): Handler {
+    const delegateHandler = function (e: Event): void {
+      const { type, eventPhase } = e
+      if (eventPhase !== 2) return
+      const handlers = typeToWindowEventHandlers[type]
+      if (handlers === undefined) return
+      handlers.forEach(handler => handler(e))
+    }
+    delegateHandler.displayName = 'evtdUnifiedWindowEventHandler'
+    return delegateHandler
+  }
+
   const unifiedHandler = createUnifiedHandler()
-  function ensureElToHandlers (type: string, phase: Phase): ElToHandlers {
-    const phaseHandlers = typeToElToHandlers[phase]
+  const unfiendWindowEventHandler = createUnifiedWindowEventHandler()
+
+  function ensureElToHandlers (phase: Phase, type: string): ElToHandlers {
+    const phaseHandlers = phaseToTypeToElToHandlers[phase]
     if (phaseHandlers[type] === undefined) {
       phaseHandlers[type] = new Map()
       window.addEventListener(type, unifiedHandler, phase === 'capture')
     }
     return phaseHandlers[type] as ElToHandlers
+  }
+  function ensureWindowEventHandlers (type: string): Handlers {
+    const windowEventHandlers = typeToWindowEventHandlers[type]
+    if (windowEventHandlers === undefined) {
+      typeToWindowEventHandlers[type] = new Set()
+      window.addEventListener(type, unfiendWindowEventHandler)
+    }
+    return typeToWindowEventHandlers[type] as Handlers
   }
   function ensureHandlers (
     elToHandlers: ElToHandlers,
@@ -133,12 +170,30 @@ function createDelegate (): Delegate {
   ): Handlers {
     let elHandlers = elToHandlers.get(el)
     if (elHandlers === undefined) {
-      elToHandlers.set(el, (elHandlers = {
-        bubble: new Set(),
-        capture: new Set()
-      }))
+      elToHandlers.set(el, (elHandlers = new Set()))
     }
     return elHandlers
+  }
+  function handlerExist (el: EventTarget, phase: Phase, type: string, handler: Handler): boolean {
+    const elToHandlers = phaseToTypeToElToHandlers[phase][type]
+    // phase ${type} event has handlers
+    if (elToHandlers !== undefined) {
+      const handlers = elToHandlers.get(el)
+      // phase using el with ${type} event has handlers
+      if (handlers !== undefined) {
+        if (handlers.has(handler)) return true
+      }
+    }
+    return false
+  }
+  function windowEventHandlerExist (type: string, handler: Handler): boolean {
+    const handlers = typeToWindowEventHandlers[type]
+    if (handlers !== undefined) {
+      if (handlers.has(handler)) {
+        return true
+      }
+    }
+    return false
   }
   function on (
     type: string,
@@ -151,10 +206,16 @@ function createDelegate (): Delegate {
     const phase = (
       options === true || (typeof options === 'object' && options.capture === true)
     ) ? 'capture' : 'bubble'
-    const elToHandlers = ensureElToHandlers(type, phase)
+    const elToHandlers = ensureElToHandlers(phase, type)
     const handlers = ensureHandlers(elToHandlers, el)
-    const phaseHandlers = handlers[phase]
-    if (!phaseHandlers.has(handler)) phaseHandlers.add(handler)
+    if (!handlers.has(handler)) handlers.add(handler)
+    if (el === window) {
+      const windowEventHandlers = ensureWindowEventHandlers(type)
+      if (!windowEventHandlers.has(handler)) {
+        windowEventHandlers.add(handler)
+      }
+    }
+    console.log(phaseToTypeToElToHandlers, typeToWindowEventHandlers)
   }
   function off (
     type: string,
@@ -164,21 +225,35 @@ function createDelegate (): Delegate {
   ): void {
     const trapped = trapOff(type as any, el as Element, handler, options)
     if (trapped) return
-    const phase = (
-      options === true || (typeof options === 'object' && options.capture === true)
-    ) ? 'capture' : 'bubble'
-    const elToHandlers = ensureElToHandlers(type, phase)
+    const capture = options === true || (typeof options === 'object' && options.capture === true)
+    const phase: Phase = capture ? 'capture' : 'bubble'
+    const elToHandlers = ensureElToHandlers(phase, type)
     const handlers = ensureHandlers(elToHandlers, el)
-    const phaseHandlers = handlers[phase]
-    if (phaseHandlers.has(handler)) phaseHandlers.delete(handler)
-    if (phaseHandlers.size === 0) {
+    if (el === window) {
+      const mirrorPhase: Phase = capture ? 'bubble' : 'capture'
+      if (
+        !handlerExist(el, mirrorPhase, type, handler) &&
+        windowEventHandlerExist(type, handler)
+      ) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        const windowEventHandlers = typeToWindowEventHandlers[type]!
+        windowEventHandlers.delete(handler)
+        if (windowEventHandlers.size === 0) {
+          window.removeEventListener(type, unfiendWindowEventHandler)
+          typeToWindowEventHandlers[type] = undefined
+        }
+      }
+    }
+    if (handlers.has(handler)) handlers.delete(handler)
+    if (handlers.size === 0) {
       elToHandlers.delete(el)
     }
     if (elToHandlers.size === 0) {
       window.removeEventListener(type, unifiedHandler, phase === 'capture')
-      typeToElToHandlers[phase][type] = undefined
+      phaseToTypeToElToHandlers[phase][type] = undefined
     }
   }
+
   return {
     on: on as any,
     off: off as any
