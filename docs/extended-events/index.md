@@ -1,7 +1,7 @@
 # Extended Events
 Evtd has some extend events, you can use them the same as other events.
 
-## Support Events
+## Supported Events
 - `clickoutside`
 - `mousemoveoutside`
 
