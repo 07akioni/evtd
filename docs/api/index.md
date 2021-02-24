@@ -15,7 +15,7 @@ on (
 ) : void
 ```
 
-**Exapmle**
+**Exapmles:**
 
 ```ts
 on(window, 'click', () => console.log('window-click'))
@@ -39,7 +39,7 @@ off (
 ) : void
 ```
 
-**Exapmle**
+**Exapmles:**
 
 ```ts
 off(window, 'click', registeredHandler)
