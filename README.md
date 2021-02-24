@@ -1,5 +1,7 @@
 # evtd
-Event delegation with native events and extended events.
+Event delegation with native events and extended events in a small library.
+
+(Only 300 lines of codes)
 ## Docs
 [evtd](https://evtd.vercel.app/)
 
