@@ -18,8 +18,8 @@ const traps = {
   clickoutside: new WeakMap<EventTarget, WeakMap<Function, TrapHandlers>>()
 }
 
-interface TrapHandlers {
-  [key: string]: Handler
+type TrapHandlers = {
+  [key in keyof HTMLElementEventMap]?: Handler
 }
 
 function createTrapHandler (
@@ -28,23 +28,29 @@ function createTrapHandler (
   originalHandler: Handler
 ): TrapHandlers {
   if (name === 'mousemoveoutside') {
+    const moveHandler = (e: Event): void => {
+      if (el.contains(e.target as any)) return
+      originalHandler(e)
+    }
     return {
-      mousemove: (e: Event) => {
-        if (el.contains(e.target as any)) return
-        originalHandler(e)
-      }
+      mousemove: moveHandler,
+      touchstart: moveHandler
     }
   } else if (name === 'clickoutside') {
     let mouseDownOutside = false
+    const downHandler = (e: Event): void => {
+      mouseDownOutside = !el.contains(e.target as any)
+    }
+    const upHanlder = (e: Event): void => {
+      if (!mouseDownOutside) return
+      if (el.contains(e.target as any)) return
+      originalHandler(e)
+    }
     return {
-      mousedown: (e: Event) => {
-        mouseDownOutside = !el.contains(e.target as any)
-      },
-      mouseup: (e: Event) => {
-        if (!mouseDownOutside) return
-        if (el.contains(e.target as any)) return
-        originalHandler(e)
-      }
+      mousedown: downHandler,
+      mouseup: upHanlder,
+      touchstart: downHandler,
+      touchend: upHanlder
     }
   }
   // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -91,7 +97,7 @@ function trapOn (
   ) {
     const trapHandlers = ensureTrapHandlers(name, el, handler)
     Object.keys(trapHandlers).forEach(key => {
-      on(key, document, trapHandlers[key], options as any)
+      on(key, document, (trapHandlers as any)[key], options as any)
     })
     return true
   }
@@ -110,7 +116,7 @@ function trapOff (
   ) {
     const trapHandlers = ensureTrapHandlers(name, el, handler)
     Object.keys(trapHandlers).forEach(key => {
-      off(key, document, trapHandlers[key], options as any)
+      off(key, document, (trapHandlers as any)[key], options as any)
     })
     return true
   }
