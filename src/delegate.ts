@@ -1,31 +1,6 @@
 import { Handler } from './interface'
 import { trapOn, trapOff, TrapEventMap } from './traps'
 
-const propagationStopped = new WeakMap<Event, boolean>()
-const immediatePropagationStopped = new WeakMap<Event, boolean>()
-
-function trackPropagation (this: Event): void {
-  propagationStopped.set(this, true)
-}
-
-function trackImmediate (this: Event): void {
-  propagationStopped.set(this, true)
-  immediatePropagationStopped.set(this, true)
-}
-
-function spy (event: Event, propName: keyof Event, fn: Function): Event {
-  const source = event[propName]
-  ;(event as any)[propName] = function () {
-    fn.apply(event, arguments)
-    return (source as any).apply(event, arguments)
-  } as any
-  return event
-}
-
-function unspy (event: Event, propName: keyof Event): void {
-  (event as any)[propName] = Event.prototype[propName]
-}
-
 type Handlers = Set<Handler>
 
 type ElToHandlers = Map<EventTarget, Handlers>
@@ -38,48 +13,188 @@ type Phase = 'capture' | 'bubble'
 
 // TODO add global event listener
 interface Delegate {
-  on:
-  (<K extends keyof HTMLElementEventMap>(type: K, el: HTMLElement, handler: (e: HTMLElementEventMap[K]) => any, useCapture?: boolean) => void) &
-  (<K extends keyof HTMLElementEventMap>(type: K, el: HTMLElement, handler: (e: HTMLElementEventMap[K]) => any, options?: EventListenerOptions) => void) &
-  (<K extends keyof WindowEventMap>(type: K, el: Window, handler: (e: WindowEventMap[K]) => any, useCapture?: boolean) => void) &
-  (<K extends keyof WindowEventMap>(type: K, el: Window, handler: (e: WindowEventMap[K]) => any, options?: EventListenerOptions) => void) &
-  (<K extends keyof DocumentEventMap>(type: K, el: Document, handler: (e: DocumentEventMap[K]) => any, useCapture?: boolean) => void) &
-  (<K extends keyof DocumentEventMap>(type: K, el: Document, handler: (e: DocumentEventMap[K]) => any, options?: EventListenerOptions) => void) &
-  (<K extends keyof TrapEventMap>(type: K, el: HTMLElement, handler: (e: TrapEventMap[K]) => any, useCapture?: boolean) => void) &
-  (<K extends keyof TrapEventMap>(type: K, el: HTMLElement, handler: (e: TrapEventMap[K]) => any, options?: EventListenerOptions) => void) &
-  ((type: String, el: EventTarget, handler: EventListener, useCapture?: boolean) => void) &
-  ((type: String, el: EventTarget, handler: EventListener, useCapture?: boolean) => void) &
-  ((type: String, el: EventTarget, handler: EventListener, options?: EventListenerOptions) => void)
-  off:
-  (<K extends keyof HTMLElementEventMap>(type: K, el: HTMLElement, handler: (e: HTMLElementEventMap[K]) => any, useCapture?: boolean) => void) &
-  (<K extends keyof HTMLElementEventMap>(type: K, el: HTMLElement, handler: (e: HTMLElementEventMap[K]) => any, options?: EventListenerOptions) => void) &
-  (<K extends keyof WindowEventMap>(type: K, el: Window, handler: (e: WindowEventMap[K]) => any, useCapture?: boolean) => void) &
-  (<K extends keyof WindowEventMap>(type: K, el: Window, handler: (e: WindowEventMap[K]) => any, options?: EventListenerOptions) => void) &
-  (<K extends keyof DocumentEventMap>(type: K, el: Document, handler: (e: DocumentEventMap[K]) => any, useCapture?: boolean) => void) &
-  (<K extends keyof DocumentEventMap>(type: K, el: Document, handler: (e: DocumentEventMap[K]) => any, options?: EventListenerOptions) => void) &
-  (<K extends keyof TrapEventMap>(type: K, el: HTMLElement, handler: (e: TrapEventMap[K]) => any, useCapture?: boolean) => void) &
-  (<K extends keyof TrapEventMap>(type: K, el: HTMLElement, handler: (e: TrapEventMap[K]) => any, options?: EventListenerOptions) => void) &
-  ((type: string, el: EventTarget, handler: EventListener, useCapture?: boolean) => void) &
-  ((type: string, el: EventTarget, handler: EventListener, options?: EventListenerOptions) => void)
-}
-
-const currentTargets = new WeakMap<Event, EventTarget>()
-const currentTargetDescriptor = Object.getOwnPropertyDescriptor(Event.prototype, 'currentTarget')
-function getCurrentTarget (this: Event): EventTarget | null {
-  return currentTargets.get(this) ?? null
-}
-
-function defineCurrentTarget (event: Event, getter?: () => EventTarget | null): void {
-  if (currentTargetDescriptor === undefined) return
-  Object.defineProperty(event, 'currentTarget', {
-    configurable: true,
-    enumerable: true,
-    get: getter ?? currentTargetDescriptor.get
-  })
+  on: (<K extends keyof HTMLElementEventMap>(
+    type: K,
+    el: HTMLElement,
+    handler: (e: HTMLElementEventMap[K]) => any,
+    useCapture?: boolean
+  ) => void) &
+  (<K extends keyof HTMLElementEventMap>(
+    type: K,
+    el: HTMLElement,
+    handler: (e: HTMLElementEventMap[K]) => any,
+    options?: EventListenerOptions
+  ) => void) &
+  (<K extends keyof WindowEventMap>(
+    type: K,
+    el: Window,
+    handler: (e: WindowEventMap[K]) => any,
+    useCapture?: boolean
+  ) => void) &
+  (<K extends keyof WindowEventMap>(
+    type: K,
+    el: Window,
+    handler: (e: WindowEventMap[K]) => any,
+    options?: EventListenerOptions
+  ) => void) &
+  (<K extends keyof DocumentEventMap>(
+    type: K,
+    el: Document,
+    handler: (e: DocumentEventMap[K]) => any,
+    useCapture?: boolean
+  ) => void) &
+  (<K extends keyof DocumentEventMap>(
+    type: K,
+    el: Document,
+    handler: (e: DocumentEventMap[K]) => any,
+    options?: EventListenerOptions
+  ) => void) &
+  (<K extends keyof TrapEventMap>(
+    type: K,
+    el: HTMLElement,
+    handler: (e: TrapEventMap[K]) => any,
+    useCapture?: boolean
+  ) => void) &
+  (<K extends keyof TrapEventMap>(
+    type: K,
+    el: HTMLElement,
+    handler: (e: TrapEventMap[K]) => any,
+    options?: EventListenerOptions
+  ) => void) &
+  ((
+    type: String,
+    el: EventTarget,
+    handler: EventListener,
+    useCapture?: boolean
+  ) => void) &
+  ((
+    type: String,
+    el: EventTarget,
+    handler: EventListener,
+    useCapture?: boolean
+  ) => void) &
+  ((
+    type: String,
+    el: EventTarget,
+    handler: EventListener,
+    options?: EventListenerOptions
+  ) => void)
+  off: (<K extends keyof HTMLElementEventMap>(
+    type: K,
+    el: HTMLElement,
+    handler: (e: HTMLElementEventMap[K]) => any,
+    useCapture?: boolean
+  ) => void) &
+  (<K extends keyof HTMLElementEventMap>(
+    type: K,
+    el: HTMLElement,
+    handler: (e: HTMLElementEventMap[K]) => any,
+    options?: EventListenerOptions
+  ) => void) &
+  (<K extends keyof WindowEventMap>(
+    type: K,
+    el: Window,
+    handler: (e: WindowEventMap[K]) => any,
+    useCapture?: boolean
+  ) => void) &
+  (<K extends keyof WindowEventMap>(
+    type: K,
+    el: Window,
+    handler: (e: WindowEventMap[K]) => any,
+    options?: EventListenerOptions
+  ) => void) &
+  (<K extends keyof DocumentEventMap>(
+    type: K,
+    el: Document,
+    handler: (e: DocumentEventMap[K]) => any,
+    useCapture?: boolean
+  ) => void) &
+  (<K extends keyof DocumentEventMap>(
+    type: K,
+    el: Document,
+    handler: (e: DocumentEventMap[K]) => any,
+    options?: EventListenerOptions
+  ) => void) &
+  (<K extends keyof TrapEventMap>(
+    type: K,
+    el: HTMLElement,
+    handler: (e: TrapEventMap[K]) => any,
+    useCapture?: boolean
+  ) => void) &
+  (<K extends keyof TrapEventMap>(
+    type: K,
+    el: HTMLElement,
+    handler: (e: TrapEventMap[K]) => any,
+    options?: EventListenerOptions
+  ) => void) &
+  ((
+    type: string,
+    el: EventTarget,
+    handler: EventListener,
+    useCapture?: boolean
+  ) => void) &
+  ((
+    type: string,
+    el: EventTarget,
+    handler: EventListener,
+    options?: EventListenerOptions
+  ) => void)
 }
 
 // currently `once` and `passive` is not supported
 function createDelegate (): Delegate {
+  if (typeof window === 'undefined') {
+    return {
+      on: () => {},
+      off: () => {}
+    }
+  }
+  const propagationStopped = new WeakMap<Event, boolean>()
+  const immediatePropagationStopped = new WeakMap<Event, boolean>()
+
+  function trackPropagation (this: Event): void {
+    propagationStopped.set(this, true)
+  }
+
+  function trackImmediate (this: Event): void {
+    propagationStopped.set(this, true)
+    immediatePropagationStopped.set(this, true)
+  }
+
+  function spy (event: Event, propName: keyof Event, fn: Function): Event {
+    const source = event[propName];
+    (event as any)[propName] = function () {
+      fn.apply(event, arguments)
+      return (source as any).apply(event, arguments)
+    } as any
+    return event
+  }
+
+  function unspy (event: Event, propName: keyof Event): void {
+    (event as any)[propName] = Event.prototype[propName]
+  }
+
+  const currentTargets = new WeakMap<Event, EventTarget>()
+  const currentTargetDescriptor = Object.getOwnPropertyDescriptor(
+    Event.prototype,
+    'currentTarget'
+  )
+  function getCurrentTarget (this: Event): EventTarget | null {
+    return currentTargets.get(this) ?? null
+  }
+
+  function defineCurrentTarget (
+    event: Event,
+    getter?: () => EventTarget | null
+  ): void {
+    if (currentTargetDescriptor === undefined) return
+    Object.defineProperty(event, 'currentTarget', {
+      configurable: true,
+      enumerable: true,
+      get: getter ?? currentTargetDescriptor.get
+    })
+  }
+
   const phaseToTypeToElToHandlers: {
     bubble: {
       [key: string]: ElToHandlers | undefined
@@ -108,7 +223,7 @@ function createDelegate (): Delegate {
           break
         }
         // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-        cursor = ((cursor as any).parentNode || null) as (EventTarget | null)
+        cursor = ((cursor as any).parentNode || null) as EventTarget | null
       }
       const captureElToHandlers = phaseToTypeToElToHandlers.capture[type]
       const bubbleElToHandlers = phaseToTypeToElToHandlers.bubble[type]
@@ -170,7 +285,7 @@ function createDelegate (): Delegate {
       if (eventPhase !== 2) return
       const handlers = typeToWindowEventHandlers[type]
       if (handlers === undefined) return
-      handlers.forEach(handler => handler(e))
+      handlers.forEach((handler) => handler(e))
     }
     delegateHandler.displayName = 'evtdUnifiedWindowEventHandler'
     return delegateHandler
@@ -205,7 +320,12 @@ function createDelegate (): Delegate {
     }
     return elHandlers
   }
-  function handlerExist (el: EventTarget, phase: Phase, type: string, handler: Handler): boolean {
+  function handlerExist (
+    el: EventTarget,
+    phase: Phase,
+    type: string,
+    handler: Handler
+  ): boolean {
     const elToHandlers = phaseToTypeToElToHandlers[phase][type]
     // phase ${type} event has handlers
     if (elToHandlers !== undefined) {
@@ -234,9 +354,11 @@ function createDelegate (): Delegate {
   ): void {
     const trapped = trapOn(type as any, el as Element, handler, options)
     if (trapped) return
-    const phase = (
-      options === true || (typeof options === 'object' && options.capture === true)
-    ) ? 'capture' : 'bubble'
+    const phase =
+      options === true ||
+      (typeof options === 'object' && options.capture === true)
+        ? 'capture'
+        : 'bubble'
     const elToHandlers = ensureElToHandlers(phase, type)
     const handlers = ensureHandlers(elToHandlers, el)
     if (!handlers.has(handler)) handlers.add(handler)
@@ -255,7 +377,9 @@ function createDelegate (): Delegate {
   ): void {
     const trapped = trapOff(type as any, el as Element, handler, options)
     if (trapped) return
-    const capture = options === true || (typeof options === 'object' && options.capture === true)
+    const capture =
+      options === true ||
+      (typeof options === 'object' && options.capture === true)
     const phase: Phase = capture ? 'capture' : 'bubble'
     const elToHandlers = ensureElToHandlers(phase, type)
     const handlers = ensureHandlers(elToHandlers, el)
@@ -290,9 +414,6 @@ function createDelegate (): Delegate {
   }
 }
 
-const {
-  on,
-  off
-} = createDelegate()
+const { on, off } = createDelegate()
 
 export { on, off }
