@@ -180,4 +180,23 @@ describe('# delegate', () => {
       expect(cb2).toHaveBeenCalledTimes(1)
     })
   })
+  it('once option should work', () => {
+    const cb = jest.fn()
+    on('click', window, cb, {
+      once: false
+    })
+    window.dispatchEvent(new Event('click'))
+    expect(cb).toHaveBeenCalledTimes(1)
+    window.dispatchEvent(new Event('click'))
+    expect(cb).toHaveBeenCalledTimes(1)
+
+    const ocb = jest.fn()
+    on('click', window, ocb, {
+      once: true
+    })
+    window.dispatchEvent(new Event('click'))
+    expect(ocb).toHaveBeenCalledTimes(1)
+    window.dispatchEvent(new Event('click'))
+    expect(ocb).toHaveBeenCalledTimes(2)
+  })
 })

@@ -9,6 +9,11 @@ interface TypeToHandlers {
   [key: string]: Handlers | undefined
 }
 
+interface EventListenerOptions {
+  capture?: boolean
+  once?: boolean
+}
+
 type Phase = 'capture' | 'bubble'
 
 // TODO add global event listener
@@ -352,7 +357,14 @@ function createDelegate (): Delegate {
     handler: Handler,
     options?: boolean | EventListenerOptions
   ): void {
-    const trapped = trapOn(type as any, el as Element, handler, options)
+    let realHandler = handler
+    if (typeof options === 'object' && options.once === true) {
+      realHandler = (e) => {
+        off(type, el, realHandler)
+        handler(e)
+      }
+    }
+    const trapped = trapOn(type as any, el as Element, realHandler, options)
     if (trapped) return
     const phase =
       options === true ||
@@ -361,11 +373,11 @@ function createDelegate (): Delegate {
         : 'bubble'
     const elToHandlers = ensureElToHandlers(phase, type)
     const handlers = ensureHandlers(elToHandlers, el)
-    if (!handlers.has(handler)) handlers.add(handler)
+    if (!handlers.has(realHandler)) handlers.add(realHandler)
     if (el === window) {
       const windowEventHandlers = ensureWindowEventHandlers(type)
-      if (!windowEventHandlers.has(handler)) {
-        windowEventHandlers.add(handler)
+      if (!windowEventHandlers.has(realHandler)) {
+        windowEventHandlers.add(realHandler)
       }
     }
   }
