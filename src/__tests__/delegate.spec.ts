@@ -188,7 +188,7 @@ describe('# delegate', () => {
     window.dispatchEvent(new Event('click'))
     expect(cb).toHaveBeenCalledTimes(1)
     window.dispatchEvent(new Event('click'))
-    expect(cb).toHaveBeenCalledTimes(1)
+    expect(cb).toHaveBeenCalledTimes(2)
 
     const ocb = jest.fn()
     on('click', window, ocb, {
@@ -197,6 +197,6 @@ describe('# delegate', () => {
     window.dispatchEvent(new Event('click'))
     expect(ocb).toHaveBeenCalledTimes(1)
     window.dispatchEvent(new Event('click'))
-    expect(ocb).toHaveBeenCalledTimes(2)
+    expect(ocb).toHaveBeenCalledTimes(1)
   })
 })
