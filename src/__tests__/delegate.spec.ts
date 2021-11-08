@@ -14,7 +14,7 @@ describe('# delegate', () => {
     inner = null as any
   })
   it('once option should work', () => {
-    [window.document, outer].forEach((el) => {
+    [window, document, outer].forEach((el) => {
       [true, false].forEach((capture) => {
         const cb = jest.fn()
         on('click', el, cb, {
