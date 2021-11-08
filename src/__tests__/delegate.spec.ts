@@ -17,15 +17,16 @@ describe('# delegate', () => {
     [window, document, outer].forEach((el) => {
       [true, false].forEach((capture) => {
         const cb = jest.fn()
-        on('click', el, cb, {
+        const options = {
           once: false,
           capture
-        })
+        }
+        on('click', el, cb, options)
         el.dispatchEvent(new Event('click', { bubbles: true }))
         expect(cb).toHaveBeenCalledTimes(1)
         el.dispatchEvent(new Event('click', { bubbles: true }))
         expect(cb).toHaveBeenCalledTimes(2)
-        off('click', el, cb)
+        off('click', el, cb, options)
 
         const ocb = jest.fn()
         on('click', el, ocb, {
