@@ -360,7 +360,7 @@ function createDelegate (): Delegate {
     let realHandler = handler
     if (typeof options === 'object' && options.once === true) {
       realHandler = (e) => {
-        off(type, el, realHandler)
+        off(type, el, realHandler, options)
         handler(e)
       }
     }

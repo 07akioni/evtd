@@ -15,24 +15,28 @@ describe('# delegate', () => {
   })
   it('once option should work', () => {
     [window.document, outer].forEach((el) => {
-      const cb = jest.fn()
-      on('click', el, cb, {
-        once: false
-      })
-      el.dispatchEvent(new Event('click', { bubbles: true }))
-      expect(cb).toHaveBeenCalledTimes(1)
-      el.dispatchEvent(new Event('click', { bubbles: true }))
-      expect(cb).toHaveBeenCalledTimes(2)
-      off('click', el, cb)
+      [true, false].forEach((capture) => {
+        const cb = jest.fn()
+        on('click', el, cb, {
+          once: false,
+          capture
+        })
+        el.dispatchEvent(new Event('click', { bubbles: true }))
+        expect(cb).toHaveBeenCalledTimes(1)
+        el.dispatchEvent(new Event('click', { bubbles: true }))
+        expect(cb).toHaveBeenCalledTimes(2)
+        off('click', el, cb)
 
-      const ocb = jest.fn()
-      on('click', el, ocb, {
-        once: true
+        const ocb = jest.fn()
+        on('click', el, ocb, {
+          once: true,
+          capture
+        })
+        el.dispatchEvent(new Event('click', { bubbles: true }))
+        expect(ocb).toHaveBeenCalledTimes(1)
+        el.dispatchEvent(new Event('click', { bubbles: true }))
+        expect(ocb).toHaveBeenCalledTimes(1)
       })
-      el.dispatchEvent(new Event('click', { bubbles: true }))
-      expect(ocb).toHaveBeenCalledTimes(1)
-      el.dispatchEvent(new Event('click', { bubbles: true }))
-      expect(ocb).toHaveBeenCalledTimes(1)
     })
   })
   it('dispatch on window', () => {
