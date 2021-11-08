@@ -13,6 +13,28 @@ describe('# delegate', () => {
     outer = null as any
     inner = null as any
   })
+  it('once option should work', () => {
+    [window.document, outer].forEach((el) => {
+      const cb = jest.fn()
+      on('click', el, cb, {
+        once: false
+      })
+      el.dispatchEvent(new Event('click', { bubbles: true }))
+      expect(cb).toHaveBeenCalledTimes(1)
+      el.dispatchEvent(new Event('click', { bubbles: true }))
+      expect(cb).toHaveBeenCalledTimes(2)
+      off('click', el, cb)
+
+      const ocb = jest.fn()
+      on('click', el, ocb, {
+        once: true
+      })
+      el.dispatchEvent(new Event('click', { bubbles: true }))
+      expect(ocb).toHaveBeenCalledTimes(1)
+      el.dispatchEvent(new Event('click', { bubbles: true }))
+      expect(ocb).toHaveBeenCalledTimes(1)
+    })
+  })
   it('dispatch on window', () => {
     const cb = jest.fn()
     on('click', window, cb)
@@ -64,52 +86,70 @@ describe('# delegate', () => {
   })
   it('work in right sequence in capture mode (1)', () => {
     const arr: number[] = []
-    on('click', outer, () => {
-      arr.push(1)
-    }, true)
+    on(
+      'click',
+      outer,
+      () => {
+        arr.push(1)
+      },
+      true
+    )
     on('click', outer, () => {
       arr.push(3)
     })
     outer.addEventListener('click', () => {
       arr.push(2)
     })
-    inner.dispatchEvent(new Event('click', {
-      bubbles: true
-    }))
+    inner.dispatchEvent(
+      new Event('click', {
+        bubbles: true
+      })
+    )
     expect(arr).toEqual([1, 2, 3])
   })
   it('work in right sequence in capture mode (2)', () => {
     const arr: number[] = []
-    on('click', outer, () => {
-      arr.push(1)
-    }, true)
+    on(
+      'click',
+      outer,
+      () => {
+        arr.push(1)
+      },
+      true
+    )
     on('click', outer, () => {
       arr.push(3)
     })
     outer.addEventListener('click', () => {
       arr.push(2)
     })
-    outer.dispatchEvent(new Event('click', {
-      bubbles: true
-    }))
+    outer.dispatchEvent(
+      new Event('click', {
+        bubbles: true
+      })
+    )
     expect(arr).toEqual([1, 2, 3])
   })
   it('works with capture on window', () => {
     const fn = jest.fn()
     on('click', window, fn, true)
-    document.dispatchEvent(new Event('click', {
-      bubbles: true
-    }))
+    document.dispatchEvent(
+      new Event('click', {
+        bubbles: true
+      })
+    )
     expect(fn).toHaveBeenCalled()
     off('click', window, fn, true)
-  })
-  ;['click', 'mousemove'].forEach(type => {
+  });
+  ['click', 'mousemove'].forEach((type) => {
     it(`works with ${type} event`, () => {
       const fn = jest.fn()
       on(type, document, fn)
-      outer.dispatchEvent(new Event(type, {
-        bubbles: true
-      }))
+      outer.dispatchEvent(
+        new Event(type, {
+          bubbles: true
+        })
+      )
       expect(fn).toHaveBeenCalled()
       off(type, document, fn)
     })
@@ -123,11 +163,13 @@ describe('# delegate', () => {
           expect((e as CustomEvent).currentTarget).toEqual(attachTo)
         }
         on(type, attachTo, currentHandler)
-        subPath.forEach(target => {
-          target.dispatchEvent(new CustomEvent(type, {
-            detail: attachTo,
-            bubbles: true
-          }))
+        subPath.forEach((target) => {
+          target.dispatchEvent(
+            new CustomEvent(type, {
+              detail: attachTo,
+              bubbles: true
+            })
+          )
         })
         off(type, attachTo, currentHandler)
       })
@@ -179,24 +221,5 @@ describe('# delegate', () => {
       expect(cb1).not.toHaveBeenCalled()
       expect(cb2).toHaveBeenCalledTimes(1)
     })
-  })
-  it('once option should work', () => {
-    const cb = jest.fn()
-    on('click', window, cb, {
-      once: false
-    })
-    window.dispatchEvent(new Event('click'))
-    expect(cb).toHaveBeenCalledTimes(1)
-    window.dispatchEvent(new Event('click'))
-    expect(cb).toHaveBeenCalledTimes(2)
-
-    const ocb = jest.fn()
-    on('click', window, ocb, {
-      once: true
-    })
-    window.dispatchEvent(new Event('click'))
-    expect(ocb).toHaveBeenCalledTimes(1)
-    window.dispatchEvent(new Event('click'))
-    expect(ocb).toHaveBeenCalledTimes(1)
   })
 })
