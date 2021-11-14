@@ -357,14 +357,16 @@ function createDelegate (): Delegate {
     handler: Handler,
     options?: boolean | EventListenerOptions
   ): void {
-    let realHandler = handler
+    let mergedHandler: Handler
     if (typeof options === 'object' && options.once === true) {
-      realHandler = (e) => {
-        off(type, el, realHandler, options)
+      mergedHandler = (e) => {
+        off(type, el, mergedHandler, options)
         handler(e)
       }
+    } else {
+      mergedHandler = handler
     }
-    const trapped = trapOn(type as any, el as Element, realHandler, options)
+    const trapped = trapOn(type as any, el as Element, mergedHandler, options)
     if (trapped) return
     const phase =
       options === true ||
@@ -373,11 +375,11 @@ function createDelegate (): Delegate {
         : 'bubble'
     const elToHandlers = ensureElToHandlers(phase, type)
     const handlers = ensureHandlers(elToHandlers, el)
-    if (!handlers.has(realHandler)) handlers.add(realHandler)
+    if (!handlers.has(mergedHandler)) handlers.add(mergedHandler)
     if (el === window) {
       const windowEventHandlers = ensureWindowEventHandlers(type)
-      if (!windowEventHandlers.has(realHandler)) {
-        windowEventHandlers.add(realHandler)
+      if (!windowEventHandlers.has(mergedHandler)) {
+        windowEventHandlers.add(mergedHandler)
       }
     }
   }
